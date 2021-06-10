@@ -1,97 +1,92 @@
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
-/*    Author:       VEX                                                       */
+/*    Author:       Alex Cutforth                                             */
 /*    Created:      Thu Sep 26 2019                                           */
-/*    Description:  Competition Template                                      */
-/*                                                                            */
+/*    Description:  Robot code for 4067X in the 2021-2022 Vex robotics        */
+/*                  compeition | Tipping - Point                              */
 /*----------------------------------------------------------------------------*/
-
-// ---- START VEXCODE CONFIGURED DEVICES ----
-// ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
 
 using namespace vex;
 
-// A global instance of competition
 competition Competition;
 
-// define your global instances of motors and other devices here
+motor lDrive1(PORT19, ratio18_1);
+motor lDrive2(PORT20, ratio18_1);
+motor rDrive1(PORT12, ratio18_1, true);
+motor rDrive2(PORT11, ratio18_1, true);
+motor_group lDrive(lDrive1, lDrive2);
+motor_group rDrive(rDrive1, rDrive2);
 
-/*---------------------------------------------------------------------------*/
-/*                          Pre-Autonomous Functions                         */
-/*                                                                           */
-/*  You may want to perform some actions before the competition starts.      */
-/*  Do them in the following function.  You must return from this function   */
-/*  or the autonomous and usercontrol tasks will not be started.  This       */
-/*  function is only called once after the V5 has been powered on and        */
-/*  not every time that the robot is disabled.                               */
-/*---------------------------------------------------------------------------*/
+motor lLift(PORT15, ratio36_1);
+motor rLift(PORT16, ratio36_1, true);
+motor_group lift(lLift, rLift);
+
+controller Controller1;
+
+const float MOTOR_ACCEL_LIMIT = 20;
+
+const float USER_DRIVE_SPEED = 100;
+const float AUTON_DRIVE_SPEED = 45;
+const float AUTON_ROTATE_SPEED = 100;
+
+const float ARM_SPEED = 100;
+
+int s_lastL = 0;
+int s_lastR = 0;
+void setSideSpeeds(int lSpeed, int rSpeed)
+{
+    if ((lSpeed - s_lastL) > MOTOR_ACCEL_LIMIT)
+        lSpeed = s_lastL + MOTOR_ACCEL_LIMIT;
+    if ((lSpeed - s_lastL) < -MOTOR_ACCEL_LIMIT)
+        lSpeed = s_lastL - MOTOR_ACCEL_LIMIT;
+    if ((rSpeed - s_lastR) > MOTOR_ACCEL_LIMIT)
+        rSpeed = s_lastR + MOTOR_ACCEL_LIMIT;
+    if ((rSpeed - s_lastR) < -MOTOR_ACCEL_LIMIT)
+        rSpeed = s_lastR - MOTOR_ACCEL_LIMIT;
+
+    s_lastL = lSpeed;
+    s_lastR = rSpeed;
+
+    if (lSpeed == 0)
+        lDrive.stop(brakeType::brake);
+    else
+        lDrive.spin(directionType::fwd, lSpeed, velocityUnits::pct);
+    if (rSpeed == 0)
+        rDrive.stop(brakeType::brake);
+    else
+        rDrive.spin(directionType::fwd, rSpeed, velocityUnits::pct);
+}
 
 void pre_auton(void) {
-  // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
-
-  // All activities that occur before the competition starts
-  // Example: clearing encoders, setting servo positions, ...
 }
-
-/*---------------------------------------------------------------------------*/
-/*                                                                           */
-/*                              Autonomous Task                              */
-/*                                                                           */
-/*  This task is used to control your robot during the autonomous phase of   */
-/*  a VEX Competition.                                                       */
-/*                                                                           */
-/*  You must modify the code to add your own robot specific commands here.   */
-/*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
-  // ..........................................................................
-  // Insert autonomous user code here.
-  // ..........................................................................
+  
 }
 
-/*---------------------------------------------------------------------------*/
-/*                                                                           */
-/*                              User Control Task                            */
-/*                                                                           */
-/*  This task is used to control your robot during the user control phase of */
-/*  a VEX Competition.                                                       */
-/*                                                                           */
-/*  You must modify the code to add your own robot specific commands here.   */
-/*---------------------------------------------------------------------------*/
-
 void usercontrol(void) {
-  // User control code here, inside the loop
   while (1) {
-    // This is the main execution loop for the user control program.
-    // Each time through the loop your program should update motor + servo
-    // values based on feedback from the joysticks.
+    setSideSpeeds(Controller1.Axis3.position() * USER_DRIVE_SPEED / 100,
+                          Controller1.Axis2.position() * USER_DRIVE_SPEED / 100);
 
-    // ........................................................................
-    // Insert user code here. This is where you use the joystick values to
-    // update your motors, etc.
-    // ........................................................................
-
-    wait(20, msec); // Sleep the task for a short amount of time to
-                    // prevent wasted resources.
+    if(Controller1.ButtonL1.pressing())
+      lift.spin(fwd, ARM_SPEED, pct);
+    else if(Controller1.ButtonL2.pressing())
+      lift.spin(fwd, -ARM_SPEED, pct);
+    else 
+      lift.stop(hold);
+    wait(20, msec);
   }
 }
 
-//
-// Main will set up the competition functions and callbacks.
-//
 int main() {
-  // Set up callbacks for autonomous and driver control periods.
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
-
-  // Run the pre-autonomous function.
   pre_auton();
-
-  // Prevent main from exiting with an infinite loop.
   while (true) {
     wait(100, msec);
   }
