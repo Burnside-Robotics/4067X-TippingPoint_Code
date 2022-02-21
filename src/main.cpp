@@ -13,31 +13,31 @@
 // Robot Configuration:
 // [Name]               [Type]        [Port(s)]
 // pneumatic1         limit         A      
-// pneumatic2         limit         B               
+// pneumatic2         limit         H               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 using namespace vex;
 
 competition Competition;
 
-motor lDrive1(PORT19, ratio18_1);
-motor lDrive2(PORT20, ratio18_1);
-motor lDrive3(PORT18, ratio18_1, true);
-motor rDrive1(PORT12, ratio18_1, true);
-motor rDrive2(PORT11, ratio18_1, true);
-motor rDrive3(PORT13, ratio18_1);
+motor lDrive1(PORT11, ratio18_1);
+motor lDrive2(PORT14, ratio18_1);
+motor lDrive3(PORT15, ratio18_1, true);
+motor rDrive1(PORT1, ratio18_1, true);
+motor rDrive2(PORT4, ratio18_1, true);
+motor rDrive3(PORT5, ratio18_1);
 motor_group lDrive(lDrive1, lDrive2, lDrive3);
 motor_group rDrive(rDrive1, rDrive2, rDrive3);
 
 motor dragger(PORT8, ratio18_1);
 
-motor lLift(PORT9, ratio36_1);
-motor rLift(PORT10, ratio36_1, true);
+motor lLift(PORT19, ratio36_1);
+motor rLift(PORT9, ratio36_1, true);
 motor_group lift(lLift, rLift);
 
 controller Controller1;
 
-const float MOTOR_ACCEL_LIMIT = 30;
+int MOTOR_ACCEL_LIMIT = 8;
 
 const float USER_DRIVE_SPEED = 100;
 const float AUTON_DRIVE_SPEED = 45;
@@ -251,17 +251,76 @@ void setClampOpen(bool val) {
   clamp2.set(val);
 }
 
-void autonomous(void) {
+void rotateLift(int degrees, bool async) {
+  directionType dir = degrees > 0 ? directionType::rev : directionType::fwd;
+  lLift.startRotateFor(dir, abs(degrees), deg);
+  if(async) {
+    rLift.startRotateFor(dir, abs(degrees), deg);
+  } else {
+    rLift.rotateFor(dir, abs(degrees), deg);
+  }
+}
+
+int auton = 0;
+
+void AutonRight() {
   setClampOpen(true);
   DriveDistance(113);
   setClampOpen(false);
   DriveDistance(-85);
   setClampOpen(true);
   DriveDistance(-20);
-  RotateDegrees(35);
-  DriveDistance(40);
+  RotateDegrees(38);
+  DriveDistance(43);
   setClampOpen(false);
-  DriveDistance(-40);
+  DriveDistance(-30);
+  setClampOpen(true);
+  DriveDistance(-10);
+  RotateDegrees(15);
+  rotateLift(400, false);
+  rotateLift(-350, false);
+}
+
+void AutonLeft() {
+  setClampOpen(true);
+  DriveDistance(120);
+  setClampOpen(false);
+  DriveDistance(-85);
+  setClampOpen(true);
+  DriveDistance(-35);
+  RotateDegrees(90);
+  rotateLift(400, false);
+  rotateLift(-350, false);
+}
+
+
+void AutonSkills() {
+  setClampOpen(true);
+  DriveDistance(113);
+  setClampOpen(false);
+  DriveDistance(-85);
+  setClampOpen(true);
+  DriveDistance(-20);
+  RotateDegrees(49);
+  DriveDistance(35);
+  rotateLift(400, false);
+  rotateLift(-400, false);
+  RotateDegrees(-15);
+  DriveDistance(10);
+  setClampOpen(false);
+  RotateDegrees(-35);
+  DriveDistance(240);
+  setClampOpen(true);
+}
+
+void autonomous(void) {
+  if(auton == 0) {
+    AutonRight();
+  } else if(auton == 1) {
+    AutonLeft();
+  } else {
+    AutonSkills();
+  }
 }
 
 bool clampOpen = true;
@@ -284,6 +343,7 @@ void usercontrol(void) {
     else 
       dragger.stop(hold);
 
+    // handleControllerDisplay();
     setClampOpen(clampOpen);
     wait(20, msec);
   }
@@ -293,13 +353,42 @@ void toggleClamp() {
   clampOpen = !clampOpen;
 }
 
+void increaseSensitivity() {
+  MOTOR_ACCEL_LIMIT++;
+}
+
+void decreaseSensitivity() {
+  if(MOTOR_ACCEL_LIMIT > 5) {
+    MOTOR_ACCEL_LIMIT--;
+  }
+}
+
+void toggleAuton() {
+  auton++;
+  if(auton == 3) {
+    auton = 0;
+  }
+  Controller1.Screen.clearLine();
+  Controller1.Screen.print("Auton: ");
+  if(auton == 0) {
+    Controller1.Screen.print("Right");
+  } else if(auton == 1) {
+    Controller1.Screen.print("Left");
+  } else {
+    Controller1.Screen.print("Skills");
+  }
+}
 
 int main() {
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
   Controller1.ButtonA.pressed(toggleClamp);
+  Controller1.ButtonUp.pressed(increaseSensitivity); 
+  Controller1.ButtonDown.pressed(decreaseSensitivity);
+  Controller1.ButtonX.pressed(toggleAuton);
   pre_auton();
   while (true) {
     wait(100, msec);
+    // handleControllerDisplay();
   }
 }
